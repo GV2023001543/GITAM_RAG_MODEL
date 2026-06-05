@@ -11,7 +11,7 @@ import yfinance as yf
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter          # ✅ Updated
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.tools import tool
@@ -29,7 +29,7 @@ llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     api_key=os.getenv("GROQ_API_KEY")
 )
-search_tool = DuckDuckGoSearchRun()
+search_tool = TavilySearchResults(max_results=3)
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 

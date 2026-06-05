@@ -16,5 +16,5 @@ torchvision
 pypdf
 python-dotenv
 yfinance
-duckduckgo-search
+tavily-python
 langsmith
