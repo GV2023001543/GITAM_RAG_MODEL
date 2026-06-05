@@ -186,7 +186,7 @@ def chat_node(state: ChatState, config=None):
 tool_node = ToolNode(tools)
 
 # ✅ SQLite
-conn = sqlite3.connect("chatbot.db", check_same_thread=False)
+conn = sqlite3.connect(":memory:", check_same_thread=False)
 checkpointer = SqliteSaver(conn=conn)
 
 # ✅ Graph
