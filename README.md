@@ -17,7 +17,7 @@ A Multi-Utility AI Chatbot built with LangGraph, FAISS, and Groq LLM.
 - **Streamlit** - Frontend UI
 
 ## 🚀 Live Demo
-[Click here to try!](your-streamlit-url-here)
+[Click here to try!](https://anamika-rag-chatbot.streamlit.app/)
 
 ## ⚙️ Setup
 1. Clone the repo
