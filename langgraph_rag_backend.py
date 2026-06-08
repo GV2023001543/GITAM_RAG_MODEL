@@ -201,11 +201,15 @@ graph.add_edge("tools","chat_node")
 
 chatbot = graph.compile(checkpointer=checkpointer)
 
-def retrieve_all_threads():
-    all_threads = set()
+def retrieve_user_threads(user_id: str) -> list:
+    """Sirf us user ke threads return karo."""
+    user_threads = []
     for checkpoint in checkpointer.list(None):
-        all_threads.add(checkpoint.config["configurable"]["thread_id"])
-    return list(all_threads)
+        thread_id = checkpoint.config["configurable"]["thread_id"]
+        if thread_id.startswith(f"{user_id}::"):
+            if thread_id not in user_threads:
+                user_threads.append(thread_id)
+    return user_threads
 
 
 def thread_has_document(thread_id: str) -> bool:

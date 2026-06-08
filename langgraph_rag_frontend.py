@@ -1,19 +1,17 @@
-
 import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 import uuid
 from langgraph_rag_backend import (
     chatbot,
     ingest_pdf,
-    retrieve_all_threads,
+    retrieve_user_threads,      # ✅ Change 1
     thread_document_metadata,
 )
 
 # .......................utility functions.........................
 
 def generate_thread_id():
-    thread_id = uuid.uuid4()
-    return str(thread_id)
+    return f"{st.session_state['user_id']}::{uuid.uuid4()}"   # ✅ Change 2
 
 def reset_chat():
     thread_id = generate_thread_id()
@@ -26,13 +24,16 @@ def add_thread(thread_id):
         st.session_state['chat_threads'].append(thread_id)
         
 def load_conversation(thread_id):
-    # Load conversation history for the given thread_id
-    # This is a placeholder function. You can implement it to fetch conversation history from a database or file.
-    state =  chatbot.get_state(config={'configurable': {'thread_id': thread_id}})
+    state = chatbot.get_state(config={'configurable': {'thread_id': thread_id}})
     return state.values.get('messages', [])
 
 # ...................................session setup................................
-  # Example config, adjust as needed
+
+if "user_id" not in st.session_state:                          # ✅ Change 3
+    st.session_state["user_id"] = str(uuid.uuid4())
+
+user_id = st.session_state["user_id"]                         # ✅ Change 3
+
 if "message_history" not in st.session_state:
     st.session_state["message_history"] = []
     
@@ -40,7 +41,7 @@ if "thread_id" not in st.session_state:
     st.session_state["thread_id"] = generate_thread_id()    
     
 if 'chat_threads' not in st.session_state:
-    st.session_state['chat_threads'] = retrieve_all_threads()
+    st.session_state['chat_threads'] = retrieve_user_threads(user_id)   # ✅ Change 4
 
 if "ingested_docs" not in st.session_state:
     st.session_state["ingested_docs"] = {}
@@ -55,7 +56,6 @@ selected_thread = None
 # ........................sidebar........................
 
 st.sidebar.title("LangGraph PDF Chatbot")
-st.sidebar.markdown(f"**Thread ID:** `{thread_key}`")
 
 if st.sidebar.button("New Chat", use_container_width=True):
     reset_chat()
