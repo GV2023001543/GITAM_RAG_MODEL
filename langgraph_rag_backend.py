@@ -105,11 +105,18 @@ def get_search_tool(user_id: str) -> TavilySearchResults:
     return TavilySearchResults(max_results=3)
 
 
-# Default instances (used for non-user-scoped paths like title generation)
-_default_llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=os.getenv("GROQ_API_KEY", "")
-)
+# Default LLM — created lazily so module import doesn't fail when the key
+# isn't set yet (Streamlit Cloud loads secrets after import).
+_default_llm_instance = None
+
+def _get_default_llm() -> ChatGroq:
+    global _default_llm_instance
+    if _default_llm_instance is None:
+        _default_llm_instance = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            api_key=os.getenv("GROQ_API_KEY", ""),
+        )
+    return _default_llm_instance
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +290,7 @@ def get_thread_title(thread_id: str) -> str:
 
 def generate_chat_title(first_message: str, user_id: str = "") -> str:
     try:
-        llm_instance = get_llm(user_id) if user_id else _default_llm
+        llm_instance = get_llm(user_id) if user_id else _get_default_llm()
         response = llm_instance.invoke(
             [
                 SystemMessage(content=(
