@@ -18,3 +18,8 @@ python-dotenv
 yfinance
 tavily-python
 langsmith
+python-docx
+python-pptx
+openpyxl
+pandas
+tabulate
