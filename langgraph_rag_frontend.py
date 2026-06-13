@@ -163,6 +163,13 @@ p, li, span, label, h1, h2, h3, h4, h5, h6, [data-testid="stMarkdownContainer"] 
 @keyframes flicker-beam {
   0%, 100% { opacity: 1; } 25% { opacity: 0.85; } 50% { opacity: 0.95; } 75% { opacity: 0.8; }
 }
+
+footer, header, #MainMenu, 
+.viewerBadge_container, .viewerBadge_link, 
+[data-testid="stToolbar"], [data-testid="stDecoration"] { 
+  display: none !important; 
+  visibility: hidden !important; 
+}
 </style>
 """
 
