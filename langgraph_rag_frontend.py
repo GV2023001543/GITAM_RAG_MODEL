@@ -170,6 +170,10 @@ footer, header, #MainMenu,
   display: none !important; 
   visibility: hidden !important; 
 }
+
+header {
+  background: transparent !important;
+}
 </style>
 """
 
