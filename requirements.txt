@@ -23,3 +23,4 @@ python-pptx
 openpyxl
 pandas
 tabulate
+rank-bm25

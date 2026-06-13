@@ -61,8 +61,27 @@ class MissingAPIKeyError(RuntimeError):
     pass
 
 # ── 1. Embeddings + LLM factory ───────────────────────────────────────────────
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-build_college_index(embeddings)
+_embeddings_instance = None
+_college_index_attempted = False
+_college_index_error = ""
+
+def get_embeddings() -> HuggingFaceEmbeddings:
+    global _embeddings_instance
+    if _embeddings_instance is None:
+        _embeddings_instance = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    return _embeddings_instance
+
+def ensure_college_index() -> None:
+    global _college_index_attempted, _college_index_error
+    if _college_index_attempted:
+        return
+    _college_index_attempted = True
+    try:
+        build_college_index(get_embeddings())
+        _college_index_error = ""
+    except Exception as exc:
+        _college_index_error = str(exc)
+        logger.exception("College knowledge base index failed to build.")
 
 def get_llm(user_id: str) -> ChatGroq:
     api_key = load_user_keys(user_id)["groq_key"] or os.getenv("GROQ_API_KEY", "")
@@ -87,6 +106,16 @@ def _get_default_llm() -> ChatGroq:
 def _llm_call(user_id: str, system_prompt: str, user_prompt: str) -> str:
     llm = get_llm(user_id) if user_id else _get_default_llm()
     return llm.invoke([SystemMessage(content=system_prompt), {"role": "user", "content": user_prompt}]).content.strip()
+
+def search_college_kb(query: str) -> dict:
+    ensure_college_index()
+    if _college_index_error:
+        return {
+            "error": f"College knowledge base could not initialize: {_college_index_error}",
+            "query": query,
+            "context": [],
+        }
+    return college_rag_search(query)
 
 # ── 2. INGESTION: Universal file → clean Markdown ────────────────────────────
 
@@ -214,7 +243,7 @@ def ingest_file(file_bytes: bytes, thread_id: str, filename: Optional[str] = Non
     chunks = splitter.split_documents([Document(page_content=markdown_text,
         metadata={"source": fname, "file_type": file_type, "thread_id": thread_id})])
 
-    vs = FAISS.from_documents(chunks, embeddings)
+    vs = FAISS.from_documents(chunks, get_embeddings())
     _THREAD_VS[str(thread_id)] = vs
 
     bm25 = BM25Retriever.from_documents(chunks)
@@ -352,7 +381,7 @@ def college_rag_tool(query: str) -> dict:
     """Search the college knowledge base (all semesters, lecture notes, syllabus).
     Use for ANY question about subjects, topics, exams, or coursework."""
     t0 = time.time()
-    result = college_rag_search(query)
+    result = search_college_kb(query)
     _obs_log({"query": query, "source": "college_kb", "retrieval_ms": round((time.time()-t0)*1000),
               "chunks_returned": len(result.get("context", []))})
     return result
@@ -369,7 +398,7 @@ def _make_rag_tool(thread_id: Optional[str]):
 # ── 9. Academic feature functions ─────────────────────────────────────────────
 
 def generate_cheat_sheet(subject: str, unit: str, user_id: str = "") -> str:
-    kb = college_rag_search(f"{subject} {unit} formulas definitions key concepts")
+    kb = search_college_kb(f"{subject} {unit} formulas definitions key concepts")
     context = "\n\n".join(kb.get("context", [])[:5])
     return _llm_call(user_id,
         "You are a concise academic summariser. Create compact cheat sheets using markdown "
@@ -391,7 +420,7 @@ def detect_subject_unit(message: str, user_id: str = "") -> dict:
 
 def generate_flashcards(subject: str, unit: str, count: int = 10, user_id: str = "") -> List[dict]:
     """Generate Q&A flashcard pairs from KB. Returns list of {question, answer}."""
-    kb = college_rag_search(f"{subject} {unit}")
+    kb = search_college_kb(f"{subject} {unit}")
     context = "\n\n".join(kb.get("context", [])[:6])
     raw = _llm_call(user_id,
         "You are a flashcard generator for college students. "
@@ -408,7 +437,7 @@ def generate_flashcards(subject: str, unit: str, count: int = 10, user_id: str =
     return [{"question": "Could not generate flashcards.", "answer": "Check your API key and KB content."}]
 
 def explain_concept(concept: str, level: str = "intermediate", user_id: str = "") -> str:
-    kb = college_rag_search(concept)
+    kb = search_college_kb(concept)
     context = "\n\n".join(kb.get("context", [])[:4])
     level_map = {
         "beginner":      "Explain like the student has zero background. Use simple analogies, avoid jargon, use real-world examples.",
@@ -421,7 +450,7 @@ def explain_concept(concept: str, level: str = "intermediate", user_id: str = ""
         f"Concept: **{concept}**\n\nRelevant notes:\n{context}")
 
 def summarise_topic(topic: str, length: str = "paragraph", user_id: str = "") -> str:
-    kb = college_rag_search(topic)
+    kb = search_college_kb(topic)
     context = "\n\n".join(kb.get("context", [])[:5])
     length_map = {
         "sentence":  "Summarise in exactly 1 sentence (max 30 words).",
@@ -513,7 +542,7 @@ def get_chatbot(user_id: str):
         turn_tools = [get_stock_price, user_search, calculator, rag_tool, college_rag_tool]
         llm_tools = user_llm.bind_tools(turn_tools)
 
-        kb_status = ("The college KB is loaded and ready." if college_index_ready()
+        kb_status = ("The college KB is loaded and ready." if is_college_kb_ready()
                      else "The college KB has no data yet.")
         sys_msg = SystemMessage(content=(
             "You are a helpful, friendly academic assistant for college students — "
@@ -572,7 +601,11 @@ def thread_document_metadata(thread_id: str) -> dict:
     return _THREAD_METADATA.get(str(thread_id), {})
 
 def get_college_kb_meta() -> dict:
+    ensure_college_index()
+    if _college_index_error:
+        return {"files": [], "chunks": 0, "chars": 0, "error": _college_index_error}
     return get_college_index_meta()
 
 def is_college_kb_ready() -> bool:
+    ensure_college_index()
     return college_index_ready()
