@@ -54,8 +54,11 @@ def load_user_keys(user_id: str) -> dict:
     row = _key_conn.execute("SELECT groq_key, tavily_key FROM user_keys WHERE user_id=?", (user_id,)).fetchone()
     return {"groq_key": row[0] or "", "tavily_key": row[1] or ""} if row else {"groq_key": "", "tavily_key": ""}
 
+def _has_saved_user_keys(keys: dict) -> bool:
+    return bool(keys.get("groq_key") or keys.get("tavily_key"))
+
 def user_has_keys(user_id: str) -> bool:
-    return bool(load_user_keys(user_id)["groq_key"])
+    return _has_saved_user_keys(load_user_keys(user_id))
 
 class MissingAPIKeyError(RuntimeError):
     pass
@@ -83,14 +86,34 @@ def ensure_college_index() -> None:
         _college_index_error = str(exc)
         logger.exception("College knowledge base index failed to build.")
 
+def _resolve_api_key(user_id: str, key_name: str, env_name: str, label: str,
+                     required: bool = True) -> str:
+    keys = load_user_keys(user_id) if user_id else {"groq_key": "", "tavily_key": ""}
+    user_key = keys.get(key_name, "")
+    if user_key:
+        return user_key
+    if _has_saved_user_keys(keys):
+        if required:
+            raise MissingAPIKeyError(
+                f"No {label} API key saved for your account. Add it in **API Keys** "
+                "or clear saved keys to use server defaults."
+            )
+        return ""
+    return os.getenv(env_name, "")
+
 def get_llm(user_id: str) -> ChatGroq:
-    api_key = load_user_keys(user_id)["groq_key"] or os.getenv("GROQ_API_KEY", "")
+    api_key = _resolve_api_key(user_id, "groq_key", "GROQ_API_KEY", "Groq")
     if not api_key:
         raise MissingAPIKeyError("No Groq API key found. Please click **API Keys**.")
     return ChatGroq(model="llama-3.3-70b-versatile", api_key=api_key)
 
-def get_search_tool(user_id: str) -> TavilySearchResults:
-    os.environ["TAVILY_API_KEY"] = load_user_keys(user_id)["tavily_key"] or os.getenv("TAVILY_API_KEY", "")
+def get_search_tool(user_id: str) -> Optional[TavilySearchResults]:
+    tavily_key = _resolve_api_key(
+        user_id, "tavily_key", "TAVILY_API_KEY", "Tavily", required=False
+    )
+    if not tavily_key:
+        return None
+    os.environ["TAVILY_API_KEY"] = tavily_key
     return TavilySearchResults(max_results=3)
 
 _default_llm_instance = None
@@ -464,7 +487,7 @@ def summarise_topic(topic: str, length: str = "paragraph", user_id: str = "") ->
 
 def explain_diagram_image(image_bytes: bytes, mime_type: str, user_id: str = "") -> str:
     import base64
-    api_key = load_user_keys(user_id)["groq_key"] or os.getenv("GROQ_API_KEY", "")
+    api_key = _resolve_api_key(user_id, "groq_key", "GROQ_API_KEY", "Groq")
     if not api_key:
         raise MissingAPIKeyError("No Groq API key. Please click **API Keys**.")
 
@@ -524,8 +547,8 @@ def get_chatbot(user_id: str):
     if user_id in _COMPILED_GRAPHS:
         return _COMPILED_GRAPHS[user_id]
 
-    user_llm     = get_llm(user_id)
-    user_search  = get_search_tool(user_id)
+    user_llm = get_llm(user_id)
+    user_search = get_search_tool(user_id)
 
     # CHANGED: rag_tool is built once per compiled graph. thread_id is resolved
     # at call time from config inside chat_node, so we bind a thin wrapper that
@@ -539,7 +562,9 @@ def get_chatbot(user_id: str):
 
         # CHANGED: construct tools with thread_id injected from config.
         rag_tool = _make_rag_tool(thread_id)
-        turn_tools = [get_stock_price, user_search, calculator, rag_tool, college_rag_tool]
+        turn_tools = [get_stock_price, calculator, rag_tool, college_rag_tool]
+        if user_search is not None:
+            turn_tools.append(user_search)
         llm_tools = user_llm.bind_tools(turn_tools)
 
         kb_status = ("The college KB is loaded and ready." if is_college_kb_ready()
@@ -552,7 +577,7 @@ def get_chatbot(user_id: str):
             "• For ANY academic question → call `college_rag_tool` first.\n"
             # CHANGED: no longer tell the model to pass thread_id; it's automatic.
             "• For the user's uploaded file → call `rag_tool` (the current document is selected automatically).\n"
-            "• For live web info → use the search tool.\n"
+            f"• For live web info → {'use the search tool.' if user_search is not None else 'say web search is disabled until a Tavily key is added.'}\n"
             "• For math → use calculator.\n"
             "• After getting context, write a thorough, well-structured answer.\n"
             "• End with: 'Confidence: High/Medium/Low — <brief reason>.'"
