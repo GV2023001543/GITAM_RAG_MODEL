@@ -134,17 +134,21 @@ h1,h2,h3,h4,h5,h6 { color: __TEXT__ !important; }
 }
 .td-logo {
   width:46px; height:46px; border-radius:14px; display:grid; place-items:center;
-  background: __TEXT__; box-shadow: 0 4px 10px -4px #00000040;
+  background: transparent; box-shadow: none;
 }
 .td-logo span { font-size:26px; color:__SURFACE_2__; font-weight:800; }
-.td-logo img { width:100%; height:100%; object-fit:contain; }
+.td-logo img { display:none; }
+.td-logo::before {
+  content:""; width:46px; height:46px; display:block;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cg fill='none' stroke='%23000' stroke-width='22' stroke-linecap='round'%3E%3Cline x1='128' y1='128' x2='128' y2='38'/%3E%3Cline x1='128' y1='128' x2='128' y2='218'/%3E%3Cline x1='128' y1='128' x2='50' y2='83'/%3E%3Cline x1='128' y1='128' x2='206' y2='83'/%3E%3Cline x1='128' y1='128' x2='50' y2='173'/%3E%3Cline x1='128' y1='128' x2='206' y2='173'/%3E%3C/g%3E%3Cg fill='%23fff' stroke='%23000' stroke-width='22'%3E%3Ccircle cx='128' cy='128' r='39'/%3E%3Ccircle cx='128' cy='38' r='20'/%3E%3Ccircle cx='128' cy='218' r='20'/%3E%3Ccircle cx='50' cy='83' r='20'/%3E%3Ccircle cx='206' cy='83' r='20'/%3E%3Ccircle cx='50' cy='173' r='20'/%3E%3Ccircle cx='206' cy='173' r='20'/%3E%3C/g%3E%3C/svg%3E");
+}
 .td-title-row { display:flex; align-items:center; gap:8px; }
 .td-mini-favicon {
-  width:22px; height:22px; border-radius:7px; display:inline-grid; place-items:center;
-  background: __TEXT__; overflow:hidden;
+  width:28px; height:28px; display:inline-grid; place-items:center;
+  background: transparent; overflow:visible;
   line-height:1; flex:0 0 auto;
 }
-.td-mini-favicon img { width:100%; height:100%; object-fit:contain; display:block; }
+.td-mini-favicon svg { width:100%; height:100%; display:block; }
 .td-title { font-size:1.45rem; font-weight:800; letter-spacing:-0.02em; color:__TEXT__ !important; }
 .td-sub { font-size:.8rem; color:__TEXT_DIM__ !important; margin-top:-2px; }
 
@@ -388,7 +392,27 @@ with tab_chat:
       <div class="td-brand" style="margin-bottom:12px;padding:10px 14px">
         <div>
           <div class="td-title-row">
-            <span class="td-mini-favicon"><img src="/favicon.png" alt="TeamDino favicon"></span>
+            <span class="td-mini-favicon" aria-label="TeamDino favicon">
+              <svg viewBox="0 0 256 256" role="img" aria-hidden="true">
+                <g fill="none" stroke="#000000" stroke-width="22" stroke-linecap="round">
+                  <line x1="128" y1="128" x2="128" y2="38" />
+                  <line x1="128" y1="128" x2="128" y2="218" />
+                  <line x1="128" y1="128" x2="50" y2="83" />
+                  <line x1="128" y1="128" x2="206" y2="83" />
+                  <line x1="128" y1="128" x2="50" y2="173" />
+                  <line x1="128" y1="128" x2="206" y2="173" />
+                </g>
+                <g fill="#ffffff" stroke="#000000" stroke-width="22">
+                  <circle cx="128" cy="128" r="39" />
+                  <circle cx="128" cy="38" r="20" />
+                  <circle cx="128" cy="218" r="20" />
+                  <circle cx="50" cy="83" r="20" />
+                  <circle cx="206" cy="83" r="20" />
+                  <circle cx="50" cy="173" r="20" />
+                  <circle cx="206" cy="173" r="20" />
+                </g>
+              </svg>
+            </span>
             <div class="td-title" style="font-size:1.05rem">TeamDino</div>
           </div>
         <div class="td-sub">RAG Model</div></div>
