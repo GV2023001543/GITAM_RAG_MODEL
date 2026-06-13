@@ -174,6 +174,32 @@ footer, header, #MainMenu,
 header {
   background: transparent !important;
 }
+
+/* --- FORCE SIDEBAR REOPEN BUTTON TO ALWAYS BE VISIBLE --- */
+header[data-testid="stHeader"] {
+  background: transparent !important;
+  display: block !important;
+  visibility: visible !important;
+  z-index: 9999 !important;
+}
+
+[data-testid="collapsedControl"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 10000 !important;
+  background: #e0e5ec !important; /* Matches your 3D theme */
+  border-radius: 8px !important;
+  box-shadow: 2px 2px 5px #a3b1c6, -2px -2px 5px #ffffff !important;
+  margin-top: 10px !important;
+  margin-left: 10px !important;
+}
+
+[data-testid="collapsedControl"] svg {
+  fill: #1a1a1a !important;
+  stroke: #1a1a1a !important;
+  color: #1a1a1a !important;
+}
 </style>
 """
 
